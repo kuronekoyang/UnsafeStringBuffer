@@ -19,7 +19,7 @@ UnsafeStringBuffer内部使用字符串池，可以高效利用内存。
 ## 使用方法
 
 ```csharp
-var buffer = new kuro.UnsafeStringBuffer();
+using var buffer = new kuro.UnsafeStringBuffer();
 buffer.Append("hello");
 buffer.Append(' ', 10);
 buffer.Append("world");

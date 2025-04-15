@@ -10,13 +10,13 @@ High performance zero allocation string builder (but unsafe)
 
 这时就可以使用UnsafeStringBuffer。
 
-# 实现原理
+## 实现原理
 
 UnsafeStringBuffer内部使用字符串池，可以高效利用内存。
 
 再通过UnsafeUtility.As，修改string的private length字段，让string真正成为了变长字符串
 
-# 使用方法
+## 使用方法
 
 ```csharp
 var buffer = new kuro.UnsafeStringBuffer();
@@ -26,7 +26,7 @@ buffer.Append("world");
 UnityEngine.Debug.Log(buffer.InternalBuffer);
 ```
 
-# 注意事项
+## 注意事项
 
 InternalBuffer只能使用在临时场景。
 

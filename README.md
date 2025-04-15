@@ -32,4 +32,4 @@ InternalBuffer只能使用在临时场景。
 
 如果需要支持多线程，请开启宏 ENABLE_MULTITHREAD_UNSAFE_STRING_BUFFER
 
-Format功能依赖ZString（TODO）
+Format功能依赖ZString，如不需要可以直接删除UnsafeStringBuffer.ZStringFormat.cs

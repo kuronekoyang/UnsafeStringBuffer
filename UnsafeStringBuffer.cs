@@ -10,7 +10,7 @@ using Unity.Collections.LowLevel.Unsafe;
 
 namespace kuro
 {
-    public unsafe struct UnsafeStringBuffer : IEquatable<UnsafeStringBuffer>, IDisposable
+    public unsafe partial struct UnsafeStringBuffer : IEquatable<UnsafeStringBuffer>, IDisposable
     {
         private static readonly BufferPool s_pool = new();
 
@@ -264,9 +264,6 @@ namespace kuro
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Insert(int insertIndex, ReadOnlySpan<char> value)
         {
-            if (value.IsEmpty)
-                Insert(insertIndex, (char*)null, 0);
-
             fixed (char* ptr = value)
                 Insert(insertIndex, ptr, value.Length);
         }

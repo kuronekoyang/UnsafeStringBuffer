@@ -23,7 +23,7 @@ using var buffer = new kuro.UnsafeStringBuffer();
 buffer.Append("hello");
 buffer.Append(' ', 10);
 buffer.Append("world");
-UnityEngine.Debug.Log(buffer.InternalBuffer);
+UnityEngine.Debug.Log(buffer.InternalBuffer); // Zero Allocation
 ```
 
 ## 注意事项

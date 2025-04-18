@@ -286,10 +286,8 @@ namespace kuro
             fixed (char* ptr = _buffer)
             fixed (char* source = span)
             {
-                var maxMoveLength = oldLength - insertIndex;
-                var moveLength = length > maxMoveLength ? maxMoveLength : length;
-                if (moveLength > 0)
-                    UnsafeUtility.MemCpy((ptr + insertIndex + length), (ptr + insertIndex), sizeof(char) * moveLength);
+                if (oldLength > insertIndex)
+                    UnsafeUtility.MemCpy((ptr + insertIndex + length), (ptr + insertIndex), sizeof(char) * (oldLength - insertIndex));
                 UnsafeUtility.MemCpy((ptr + insertIndex), source, sizeof(char) * length);
             }
 
@@ -311,10 +309,8 @@ namespace kuro
             if (length > 0)
                 fixed (char* ptr = _buffer)
                 {
-                    var maxMoveLength = oldLength - insertIndex;
-                    var moveLength = length > maxMoveLength ? maxMoveLength : length;
-                    if (moveLength > 0)
-                        UnsafeUtility.MemCpy((ptr + insertIndex + length), (ptr + insertIndex), sizeof(char) * moveLength);
+                    if (oldLength > insertIndex)
+                        UnsafeUtility.MemCpy((ptr + insertIndex + length), (ptr + insertIndex), sizeof(char) * (oldLength - insertIndex));
                     for (int i = 0; i < length; i++)
                         ptr[oldLength + i] = value;
                 }

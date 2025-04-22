@@ -14,7 +14,7 @@ High performance zero allocation string builder (but unsafe)
 
 UnsafeStringBuffer内部使用字符串池，可以高效利用内存。
 
-再通过UnsafeUtility.As，修改string的private length字段，让string真正成为了变长字符串
+再通过[UnsafeUtility.As](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Unity.Collections.LowLevel.Unsafe.UnsafeUtility.As.html)，修改string的private length字段，让string真正成为了变长字符串
 
 ## 使用方法
 

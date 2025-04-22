@@ -1,6 +1,8 @@
 # UnsafeStringBuffer
 High performance zero allocation string builder (but unsafe)
 
+[UnsafeArrayBuffer](https://github.com/kuronekoyang/UnsafeArrayBuffer)姊妹篇
+
 你可能用过很多种StringBuilder，不管是C#原生的StringBuilder，还是Cysharp的ZString，亦或是其他的。
   
 但无论哪一种，即便是号称"Zero Allocation"，在最后ToString也会new一个新的string。

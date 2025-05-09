@@ -312,7 +312,7 @@ namespace kuro
                     if (oldLength > insertIndex)
                         UnsafeUtility.MemCpy((ptr + insertIndex + length), (ptr + insertIndex), sizeof(char) * (oldLength - insertIndex));
                     for (int i = 0; i < length; i++)
-                        ptr[oldLength + i] = value;
+                        ptr[insertIndex + i] = value;
                 }
 
             _copy = null;

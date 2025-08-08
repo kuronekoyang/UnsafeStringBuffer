@@ -416,9 +416,12 @@ namespace kuro
                 s_pool.Rent(newSize, out var newBuffer, out var newCapacity);
                 if (_buffer != null)
                 {
-                    fixed (char* ptr = _buffer)
-                    fixed (char* newPtr = newBuffer)
-                        UnsafeUtility.MemCpy(newPtr, ptr, sizeof(char) * _length);
+                    if (_length > 0)
+                    {
+                        fixed (char* ptr = _buffer)
+                        fixed (char* newPtr = newBuffer)
+                            UnsafeUtility.MemCpy(newPtr, ptr, sizeof(char) * _length);
+                    }
                     s_pool.Return(_buffer, _capacity);
                 }
 

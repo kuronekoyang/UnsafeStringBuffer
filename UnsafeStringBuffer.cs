@@ -356,7 +356,7 @@ namespace kuro
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Remove(int index) => Remove(index, Length - index - 1);
+        public void Remove(int index) => Remove(index, Length - index);
 
         public void Remove(int index, int count)
         {
@@ -418,7 +418,7 @@ namespace kuro
                 {
                     fixed (char* ptr = _buffer)
                     fixed (char* newPtr = newBuffer)
-                        UnsafeUtility.MemCpy(newPtr, ptr, sizeof(char) * _capacity);
+                        UnsafeUtility.MemCpy(newPtr, ptr, sizeof(char) * _length);
                     s_pool.Return(_buffer, _capacity);
                 }
 

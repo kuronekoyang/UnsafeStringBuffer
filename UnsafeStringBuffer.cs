@@ -393,6 +393,18 @@ namespace kuro
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Reset()
+        {
+            if (_length > 0)
+            {
+                fixed (char* ptr = _buffer)
+                    UnsafeUtility.MemClear(ptr, sizeof(char) * _length);
+                _length = 0;
+                SetBufferLength(_buffer, 0);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void Resize(int newSize)
         {
             if (newSize <= 0)

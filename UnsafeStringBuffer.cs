@@ -2,17 +2,42 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Unity.Collections.LowLevel.Unsafe;
 
+#if ENABLE_MULTITHREAD_UNSAFE_STRING_BUFFER
+using StringPool = System.Collections.Concurrent.ConcurrentBag<string>;
+
+#else
+using StringPool = System.Collections.Generic.List<string>;
+
+#endif
+
 namespace kuro
 {
     public unsafe partial struct UnsafeStringBuffer : IEquatable<UnsafeStringBuffer>, IDisposable
     {
         private static readonly BufferPool s_pool = new();
+        private static readonly char[] s_newline;
+
+        static UnsafeStringBuffer()
+        {
+            var newLine = Environment.NewLine.ToCharArray();
+            if (newLine.Length == 1)
+            {
+                // cr or lf
+                s_newline = new char[] { newLine[0] };
+            }
+            else
+            {
+                // crlf(windows)
+                s_newline = new char[] { newLine[0], newLine[1] };
+            }
+        }
 
         private string _buffer;
         private int _capacity;
@@ -242,6 +267,8 @@ namespace kuro
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AppendLine() => Append(s_newline);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Insert(int insertIndex, string value) => Insert(insertIndex, value != null ? value.AsSpan() : ReadOnlySpan<char>.Empty);
@@ -555,16 +582,33 @@ namespace kuro
 
         private class BufferPool
         {
+            private const int MaxSizePerBucket = 100;
             private static readonly string s_emptyBuffer = new("");
-            private readonly int _maxBuffersPerBucket = 50;
-            private readonly List<string>[] _buckets;
+            private readonly StringPool[] _buckets;
 
-            public BufferPool(int maxBuffersPerBucket = 50)
+            public BufferPool()
             {
-                _maxBuffersPerBucket = maxBuffersPerBucket;
-                _buckets = new List<string>[16];
+                _buckets = new StringPool[16];
                 for (int i = 0; i < _buckets.Length; i++)
-                    _buckets[i] = new List<string>(8);
+                    _buckets[i] = new StringPool();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static bool TryTake(ConcurrentBag<string> pool, out string buffer) => pool.TryTake(out buffer);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            private static bool TryTake(List<string> pool, out string buffer)
+            {
+                var count = pool.Count;
+                if (count > 0)
+                {
+                    buffer = pool[count - 1];
+                    pool.RemoveAt(count - 1);
+                    return true;
+                }
+
+                buffer = null;
+                return false;
             }
 
             public void Rent(int minimumLength, out string buffer, out int capacity)
@@ -586,25 +630,11 @@ namespace kuro
                 if (index != -1)
                 {
                     var q = _buckets[index];
-#if ENABLE_MULTITHREAD_UNSAFE_STRING_BUFFER
-                    lock (q)
-#endif
+                    if (TryTake(q, out var r))
                     {
-                        try
-                        {
-                            var count = q.Count;
-                            if (count > 0)
-                            {
-                                var r = q[count - 1];
-                                q.RemoveAt(count - 1);
-                                buffer = r;
-                                capacity = size;
-                                return;
-                            }
-                        }
-                        finally
-                        {
-                        }
+                        buffer = r;
+                        capacity = size;
+                        return;
                     }
                 }
 
@@ -621,24 +651,10 @@ namespace kuro
                 if (index != -1)
                 {
                     var q = _buckets[index];
+                    if (q.Count >= MaxSizePerBucket)
+                        return;
 
-#if ENABLE_MULTITHREAD_UNSAFE_STRING_BUFFER
-                    lock (q)
-#endif
-                    {
-                        try
-                        {
-                            if (q.Count > _maxBuffersPerBucket)
-                            {
-                                return;
-                            }
-
-                            q.Add(buffer);
-                        }
-                        finally
-                        {
-                        }
-                    }
+                    q.Add(buffer);
                 }
             }
 

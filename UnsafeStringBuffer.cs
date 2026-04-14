@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -19,6 +20,7 @@ using StringPool = System.Collections.Generic.List<string>;
 
 namespace kuro
 {
+	[DebuggerDisplay("Length = {Length}")]
     public unsafe partial struct UnsafeStringBuffer : IEquatable<UnsafeStringBuffer>, IDisposable
     {
         private static readonly BufferPool s_pool = new();
@@ -44,19 +46,19 @@ namespace kuro
         private int _length;
         private string _copy;
 
-        public bool IsEmpty
+        public readonly bool IsEmpty
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _length <= 0;
         }
 
-        public int Length
+        public readonly int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _length;
         }
 
-        public int Capacity
+        public readonly int Capacity
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _capacity;
@@ -68,7 +70,7 @@ namespace kuro
             get => InternalBuffer[index];
         }
 
-        public string InternalBuffer
+        public readonly string InternalBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _buffer ?? string.Empty;
@@ -101,7 +103,11 @@ namespace kuro
 
         public UnsafeStringBuffer(char value) : this() => SetString(value);
         public UnsafeStringBuffer(char value, int length) : this() => SetString(value, length);
+		public UnsafeStringBuffer(ReadOnlySpan<byte> value, Encoding encoding) : this() => AppendEncoding(value, encoding);
+        public UnsafeStringBuffer(ReadOnlySpan<byte> value) : this() => AppendUtf8(value);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly UnsafeStringBuffer Clone() => new(this);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetString(string value) => SetString(value != null ? value.AsSpan() : ReadOnlySpan<char>.Empty);
@@ -144,10 +150,31 @@ namespace kuro
             var span = safe.AsSpan();
             Resize(length);
 
-            if (length > 0 && !span.IsEmpty)
+            if (length > 0)
                 fixed (char* ptr = _buffer)
-                fixed (char* source = span)
-                    UnsafeUtility.MemCpy(ptr, source, sizeof(char) * length);
+                {
+                    if (!span.IsEmpty)
+                        fixed (char* source = span)
+                            UnsafeUtility.MemCpy(ptr, source, sizeof(char) * length);
+                    ptr[_length] = '\0';
+                    ptr[_length + 1] = '\0';
+                }
+
+            _copy = null;
+        }
+
+        public void SetString(StringBuilder value)
+        {
+            var length = value?.Length ?? 0;
+            Resize(length);
+
+            if (length > 0)
+                fixed (char* ptr = _buffer)
+                {
+                    value!.CopyTo(0, new Span<char>(ptr, length), length);
+                    ptr[_length] = '\0';
+                    ptr[_length + 1] = '\0';
+                }
 
             _copy = null;
         }
@@ -163,8 +190,19 @@ namespace kuro
             if (length > 0)
             {
                 fixed (char* ptr = _buffer)
-                    for (int i = 0; i < length; i++)
-                        ptr[i] = value;
+                {
+                    if (value == 0)
+                    {
+                        UnsafeUtility.MemClear(ptr, sizeof(char) * (length + 2));
+                    }
+                    else
+                    {
+                        for (int i = 0; i < length; i++)
+                            ptr[i] = value;
+                        ptr[_length] = '\0';
+                        ptr[_length + 1] = '\0';
+                    }
+                }
             }
 
             _copy = null;
@@ -212,7 +250,11 @@ namespace kuro
 
             fixed (char* ptr = _buffer)
             fixed (char* source = span)
+            {
                 UnsafeUtility.MemCpy((ptr + oldLength), source, sizeof(char) * length);
+                ptr[_length] = '\0';
+                ptr[_length + 1] = '\0';
+            }
 
             _copy = null;
         }
@@ -228,29 +270,48 @@ namespace kuro
 
             if (length > 0)
                 fixed (char* ptr = _buffer)
-                    for (int i = 0; i < length; i++)
-                        ptr[oldLength + i] = value;
+                {
+                    if (value == 0)
+                    {
+                        UnsafeUtility.MemClear((ptr + oldLength), sizeof(char) * (length + 2));
+                    }
+                    else
+                    {
+                        for (int i = 0; i < length; i++)
+                            ptr[oldLength + i] = value;
+                        ptr[_length] = '\0';
+                        ptr[_length + 1] = '\0';
+                    }
+                }
 
             _copy = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AppendUtf8(ReadOnlySpan<byte> value)
+        public void AppendUtf8(ReadOnlySpan<byte> value) => AppendEncoding(value, Encoding.UTF8);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AppendUtf8(IntPtr value, int length) => AppendEncoding(value, length, Encoding.UTF8);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AppendUtf8(byte* value, int length) => AppendEncoding(value, length, Encoding.UTF8);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AppendEncoding(ReadOnlySpan<byte> value, Encoding encoding)
         {
             if (value.IsEmpty)
                 return;
             fixed (byte* ptr = value)
-                AppendUtf8(ptr, value.Length);
+                AppendEncoding(ptr, value.Length, encoding);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void AppendUtf8(IntPtr value, int length) => AppendUtf8((byte*)value.ToPointer(), length);
+        public void AppendEncoding(IntPtr value, int length, Encoding encoding) => AppendEncoding((byte*)value.ToPointer(), length, encoding);
 
-        public void AppendUtf8(byte* value, int length)
+        public void AppendEncoding(byte* value, int length, Encoding encoding)
         {
             if (value == null)
                 return;
-            var encoding = Encoding.UTF8;
             var maxCharCount = encoding.GetMaxCharCount(length);
             var charBuffer = ArrayPool<char>.Shared.Rent(maxCharCount);
             try
@@ -291,8 +352,15 @@ namespace kuro
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Insert(int insertIndex, ReadOnlySpan<char> value)
         {
-            fixed (char* ptr = value)
-                Insert(insertIndex, ptr, value.Length);
+            if (value.IsEmpty)
+            {
+                Insert(insertIndex, (char*)null, 0);
+            }
+            else
+            {
+                fixed (char* ptr = value)
+                    Insert(insertIndex, ptr, value.Length);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -316,6 +384,8 @@ namespace kuro
                 if (oldLength > insertIndex)
                     UnsafeUtility.MemCpy((ptr + insertIndex + length), (ptr + insertIndex), sizeof(char) * (oldLength - insertIndex));
                 UnsafeUtility.MemCpy((ptr + insertIndex), source, sizeof(char) * length);
+                ptr[_length] = '\0';
+                ptr[_length + 1] = '\0';
             }
 
             _copy = null;
@@ -340,6 +410,8 @@ namespace kuro
                         UnsafeUtility.MemCpy((ptr + insertIndex + length), (ptr + insertIndex), sizeof(char) * (oldLength - insertIndex));
                     for (int i = 0; i < length; i++)
                         ptr[insertIndex + i] = value;
+                    ptr[_length] = '\0';
+                    ptr[_length + 1] = '\0';
                 }
 
             _copy = null;
@@ -373,9 +445,10 @@ namespace kuro
                 }
                 else
                 {
-                    UnsafeUtility.MemClear((ptr + index1), sizeof(char) * (_length - index1));
+                    UnsafeUtility.MemClear((ptr + index1), sizeof(char) * (_length - index1 + 2));
                     _length = index1;
                     SetBufferLength(_buffer, index1);
+                    _copy = null;
                 }
 
                 return num;
@@ -401,12 +474,28 @@ namespace kuro
             {
                 if (index < _length)
                     UnsafeUtility.MemCpy((ptr + index), (ptr + index + count), sizeof(char) * (_length - index));
-                UnsafeUtility.MemClear((ptr + _length), sizeof(char) * count);
+                UnsafeUtility.MemClear((ptr + _length), sizeof(char) * (count + 2));
             }
+
+            _copy = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
+        {
+            if (_length > 0)
+            {
+                fixed (char* ptr = _buffer)
+                    UnsafeUtility.MemClear(ptr, sizeof(char) * _length);
+                _length = 0;
+                SetBufferLength(_buffer, 0);
+            }
+
+            _copy = null;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Release()
         {
             if (_buffer != null)
             {
@@ -417,18 +506,6 @@ namespace kuro
             _length = 0;
             _capacity = 0;
             _copy = null;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Reset()
-        {
-            if (_length > 0)
-            {
-                fixed (char* ptr = _buffer)
-                    UnsafeUtility.MemClear(ptr, sizeof(char) * _length);
-                _length = 0;
-                SetBufferLength(_buffer, 0);
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -452,7 +529,7 @@ namespace kuro
             }
             else
             {
-                s_pool.Rent(newSize, out var newBuffer, out var newCapacity);
+                s_pool.Rent(newSize + 2, out var newBuffer, out var newCapacity);
                 if (_buffer != null)
                 {
                     if (_length > 0)
@@ -461,6 +538,7 @@ namespace kuro
                         fixed (char* newPtr = newBuffer)
                             UnsafeUtility.MemCpy(newPtr, ptr, sizeof(char) * _length);
                     }
+
                     s_pool.Return(_buffer, _capacity);
                 }
 
@@ -468,6 +546,50 @@ namespace kuro
                 _capacity = newCapacity;
                 _length = newSize;
                 SetBufferLength(_buffer, newSize);
+            }
+        }
+
+        public void ToLower()
+        {
+            if (_length > 0)
+            {
+                fixed (char* ptr = _buffer)
+                {
+                    for (int i = 0; i < _length; i++)
+                    {
+                        if (char.IsHighSurrogate(ptr[i]) && i + 1 < _length && char.IsLowSurrogate(ptr[i + 1]))
+                        {
+                            i++; // 跳过高代理 + 低代理，共两个 char
+                            continue;
+                        }
+
+                        ptr[i] = char.ToLowerInvariant(ptr[i]);
+                    }
+                }
+
+                _copy = null;
+            }
+        }
+
+        public void ToUpper()
+        {
+            if (_length > 0)
+            {
+                fixed (char* ptr = _buffer)
+                {
+                    for (int i = 0; i < _length; i++)
+                    {
+                        if (char.IsHighSurrogate(ptr[i]) && i + 1 < _length && char.IsLowSurrogate(ptr[i + 1]))
+                        {
+                            i++; // 跳过高代理 + 低代理，共两个 char
+                            continue;
+                        }
+
+                        ptr[i] = char.ToUpperInvariant(ptr[i]);
+                    }
+                }
+
+                _copy = null;
             }
         }
 
@@ -529,7 +651,7 @@ namespace kuro
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Dispose() => Clear();
+        public void Dispose() => Release();
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

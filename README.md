@@ -1,7 +1,7 @@
-# UnsafeStringBuffer
+# FastString
 High performance zero allocation string builder (but unsafe)
 
-[UnsafeArrayBuffer](https://github.com/kuronekoyang/UnsafeArrayBuffer)姊妹篇
+[FastArray](https://github.com/kuronekoyang/FastArray)姊妹篇
 
 你可能用过很多种StringBuilder，不管是C#原生的StringBuilder，还是Cysharp的ZString，亦或是其他的。
   
@@ -10,18 +10,18 @@ High performance zero allocation string builder (but unsafe)
 
 这在某些需要临时使用StringBuilder，但接收端只提供了string作为参数的api的情况下，还是会分配内存。
 
-这时就可以使用UnsafeStringBuffer。
+这时就可以使用FastString。
 
 ## 实现原理
 
-UnsafeStringBuffer内部使用字符串池，可以高效利用内存。
+FastString内部使用字符串池，可以高效利用内存。
 
 再通过[UnsafeUtility.As](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Unity.Collections.LowLevel.Unsafe.UnsafeUtility.As.html)，修改string的private length字段，让string真正成为了变长字符串
 
 ## 使用方法
 
 ```csharp
-using var buffer = new kuro.UnsafeStringBuffer();
+using var buffer = new kuro.FastString();
 buffer.Append("hello");
 buffer.Append(' ', 10);
 buffer.Append("world");
@@ -34,4 +34,4 @@ InternalBuffer只能使用在临时场景。
 
 如果需要支持多线程，请开启宏 ENABLE_MULTITHREAD_UNSAFE_STRING_BUFFER
 
-Format功能依赖ZString，如不需要可以直接删除UnsafeStringBuffer.ZStringFormat.cs
+Format功能依赖ZString，如不需要可以直接删除FastString.ZStringFormat.cs

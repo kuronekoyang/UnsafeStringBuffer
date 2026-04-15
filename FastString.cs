@@ -21,12 +21,12 @@ using StringPool = System.Collections.Generic.List<string>;
 namespace kuro
 {
 	[DebuggerDisplay("Length = {Length}")]
-    public unsafe partial struct UnsafeStringBuffer : IEquatable<UnsafeStringBuffer>, IDisposable
+    public unsafe partial struct FastString : IEquatable<FastString>, IDisposable
     {
         private static readonly BufferPool s_pool = new();
         private static readonly char[] s_newline;
 
-        static UnsafeStringBuffer()
+        static FastString()
         {
             var newLine = Environment.NewLine.ToCharArray();
             if (newLine.Length == 1)
@@ -91,23 +91,23 @@ namespace kuro
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<char> AsSpan(int start, int length) => InternalBuffer.AsSpan().Slice(start, length);
 
-        public UnsafeStringBuffer(string value) : this() => SetString(value);
-        public UnsafeStringBuffer(string value, int index) : this() => SetString(value, index);
-        public UnsafeStringBuffer(string value, int index, int length) : this() => SetString(value, index, length);
-        public UnsafeStringBuffer(char[] value) : this() => SetString(value);
-        public UnsafeStringBuffer(char[] value, int index) : this() => SetString(value, index);
-        public UnsafeStringBuffer(char[] value, int index, int length) : this() => SetString(value, index, length);
-        public UnsafeStringBuffer(ReadOnlySpan<char> value) : this() => SetString(value);
-        public UnsafeStringBuffer(char* value, int length) : this() => SetString(value, length);
-        public UnsafeStringBuffer(IntPtr value, int length) : this() => SetString(value, length);
+        public FastString(string value) : this() => SetString(value);
+        public FastString(string value, int index) : this() => SetString(value, index);
+        public FastString(string value, int index, int length) : this() => SetString(value, index, length);
+        public FastString(char[] value) : this() => SetString(value);
+        public FastString(char[] value, int index) : this() => SetString(value, index);
+        public FastString(char[] value, int index, int length) : this() => SetString(value, index, length);
+        public FastString(ReadOnlySpan<char> value) : this() => SetString(value);
+        public FastString(char* value, int length) : this() => SetString(value, length);
+        public FastString(IntPtr value, int length) : this() => SetString(value, length);
 
-        public UnsafeStringBuffer(char value) : this() => SetString(value);
-        public UnsafeStringBuffer(char value, int length) : this() => SetString(value, length);
-		public UnsafeStringBuffer(ReadOnlySpan<byte> value, Encoding encoding) : this() => AppendEncoding(value, encoding);
-        public UnsafeStringBuffer(ReadOnlySpan<byte> value) : this() => AppendUtf8(value);
+        public FastString(char value) : this() => SetString(value);
+        public FastString(char value, int length) : this() => SetString(value, length);
+		public FastString(ReadOnlySpan<byte> value, Encoding encoding) : this() => AppendEncoding(value, encoding);
+        public FastString(ReadOnlySpan<byte> value) : this() => AppendUtf8(value);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly UnsafeStringBuffer Clone() => new(this);
+        public readonly FastString Clone() => new(this);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetString(string value) => SetString(value != null ? value.AsSpan() : ReadOnlySpan<char>.Empty);
@@ -598,48 +598,48 @@ namespace kuro
         // public static implicit operator string(StringBuffer value) => value.StringReference;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator ReadOnlySpan<char>(UnsafeStringBuffer value) => value.AsSpan();
+        public static implicit operator ReadOnlySpan<char>(FastString value) => value.AsSpan();
 
         // 有点危险
         // [MethodImpl(MethodImplOptions.AggressiveInlining)]
         // public static implicit operator PooledString(string value) => new(value);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(UnsafeStringBuffer a, UnsafeStringBuffer b) => string.Equals(a.InternalBuffer, b.InternalBuffer, StringComparison.Ordinal);
+        public static bool operator ==(FastString a, FastString b) => string.Equals(a.InternalBuffer, b.InternalBuffer, StringComparison.Ordinal);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(UnsafeStringBuffer a, UnsafeStringBuffer b) => !(a == b);
+        public static bool operator !=(FastString a, FastString b) => !(a == b);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(UnsafeStringBuffer a, string b) => string.Equals(a.InternalBuffer, b, StringComparison.Ordinal);
+        public static bool operator ==(FastString a, string b) => string.Equals(a.InternalBuffer, b, StringComparison.Ordinal);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(UnsafeStringBuffer a, string b) => !(a == b);
+        public static bool operator !=(FastString a, string b) => !(a == b);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(string a, UnsafeStringBuffer b) => string.Equals(a, b.InternalBuffer, StringComparison.Ordinal);
+        public static bool operator ==(string a, FastString b) => string.Equals(a, b.InternalBuffer, StringComparison.Ordinal);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(string a, UnsafeStringBuffer b) => !(a == b);
+        public static bool operator !=(string a, FastString b) => !(a == b);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(UnsafeStringBuffer a, ReadOnlySpan<char> b) => a.AsSpan().SequenceEqual(b);
+        public static bool operator ==(FastString a, ReadOnlySpan<char> b) => a.AsSpan().SequenceEqual(b);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(UnsafeStringBuffer a, ReadOnlySpan<char> b) => !(a == b);
+        public static bool operator !=(FastString a, ReadOnlySpan<char> b) => !(a == b);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(ReadOnlySpan<char> a, UnsafeStringBuffer b) => a.SequenceEqual(b.AsSpan());
+        public static bool operator ==(ReadOnlySpan<char> a, FastString b) => a.SequenceEqual(b.AsSpan());
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(ReadOnlySpan<char> a, UnsafeStringBuffer b) => !(a == b);
+        public static bool operator !=(ReadOnlySpan<char> a, FastString b) => !(a == b);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(UnsafeStringBuffer other) => this == other;
+        public bool Equals(FastString other) => this == other;
 
         public override bool Equals(object other)
         {
-            if (other is UnsafeStringBuffer pooledString)
+            if (other is FastString pooledString)
                 return this == pooledString;
             if (other is string s)
                 return this == s;
@@ -664,7 +664,7 @@ namespace kuro
 
         private readonly struct SafeMemorySegment : IDisposable
         {
-            private readonly UnsafeStringBuffer? _tempBuffer;
+            private readonly FastString? _tempBuffer;
             private readonly char* _value;
             private readonly int _length;
 
@@ -678,7 +678,7 @@ namespace kuro
                 return ReadOnlySpan<char>.Empty;
             }
 
-            public SafeMemorySegment(UnsafeStringBuffer owner, char* value, int length)
+            public SafeMemorySegment(FastString owner, char* value, int length)
             {
                 _tempBuffer = null;
                 _value = value;

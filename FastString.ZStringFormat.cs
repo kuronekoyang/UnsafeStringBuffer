@@ -4,7 +4,7 @@ using Cysharp.Text;
 
 namespace kuro
 {
-    public partial struct UnsafeStringBuffer
+    public partial struct FastString
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Append<T>(T value)
